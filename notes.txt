@@ -1,4 +1,20 @@
 Firefox must be installed
 Will not currently work without Python 3.5 installed
 Must run 'pip install selenium'
-Must run 'pip install pywinauto'
+
+Must have config.txt with username and password, on separate lines, as 'username=name' without svrs
+
+Jurisdictions xml -> Start on line 125. Split on 'nobr>', drop last two chars, second element is jurisdiction,
+fourth element is email. Implement as dict
+
+Absentees similar, but with more cleanup and implement as 2d array
+
+Lookup last element of each array of Absentee in Jurisdiction and append email to Absentee
+
+Figure out how to write to Excel
+
+Create dict of [Jurisdiction : 2D array of absentees for jurisdiction]
+
+Compare mailing addresses and eliminate as necessary
+
+use smtplib to send email
