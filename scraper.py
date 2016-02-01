@@ -1,11 +1,14 @@
 from selenium import webdriver
+from selenium.common.exceptions import NoAlertPresentException
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import  ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from threading import Thread
 import time
 
 
@@ -27,47 +30,142 @@ def get_webdriver():
     return webdriver.Firefox(firefox_profile=profile)
 
 
-def main():
-    browser = get_webdriver()
-    browser.get("http://wisvote.wi.gov")
-    browser.maximize_window()
-    main_window = browser.current_window_handle
-    assert "Sign In" in browser.title
+def wait_for_id(driver, id):
+    WebDriverWait(driver, 10).until(
+        expected_conditions.presence_of_element_located((By.ID, id))
+    )
+
+
+def get_creds():
+    creds = {}
+    with open("config.txt") as file:
+        for line in file:
+            (key, val) = [x.strip() for x in line.split('=')]
+            creds[key] = val
+    return creds
+
+
+def sign_in(browser):
+    creds = get_creds()
     username = browser.find_element_by_id("userNameInput")
     username.click()
     username.clear()
-    username.send_keys("svrs\\bridgt")
-    browser.find_element_by_id("passwordInput").send_keys("" + Keys.ENTER)
-    time.sleep(4)
-    do_and_switch_to_new_window(browser, browser.find_element_by_id("advancedFindImage").click)
-    time.sleep(4)
-    assert "Advanced Find" in browser.title
-    browser.switch_to.frame(browser.find_element_by_id("contentIFrame0"))
+    username.send_keys("svrs\\" + creds['username'])
+    browser.find_element_by_id("passwordInput").send_keys(creds['password'] + Keys.ENTER)
+
+
+def get_yesterday():
+    date = time.localtime()
+    return str(date.tm_mon) + '/' + str(date.tm_mday - 1) + '/' + str(date.tm_year)
+
+
+def click_if_available(browser, id, retry=False, timeout=5.0):
+    time_elapsed = 0.0
+    while time_elapsed < timeout:
+        try:
+            browser.find_element_by_id(id).click()
+            break
+        except NoSuchElementException:
+            if retry:
+                time_elapsed += 0.1
+                time.sleep(0.1)
+            else:
+                break
+
+
+def dismiss_alerts(browser):
+    while True:
+        try:
+            time.sleep(0.1)
+            browser.switch_to.alert.accept()
+        except NoAlertPresentException:
+            break
+
+
+def construct_export_id(entity_name):
+    entity_name = "".join(entity_name.split()).lower()
+    return "edm_" + entity_name + "|NoRelationship|SubGridStandard|Mscrm.SubGrid.edm_" + \
+           entity_name + ".ExportToExcel-Large"
+
+
+def download_excel(browser, entity_name):
+    browser.find_element_by_id("Mscrm.AdvancedFind.Groups.Show.Results-Large").click()
+    dismiss_alerts(browser)
+    browser.find_element_by_id(construct_export_id(entity_name)).click()
+    time.sleep(.5)
+    browser.switch_to.frame(browser.find_element_by_id("InlineDialog_Iframe"))
+    click_if_available(browser, "printAll")
+    browser.find_element_by_id("dialogOkButton").click()
+    browser.switch_to.default_content()
+
+
+def select_view(browser, entity_name, view_name):
     entity = Select(browser.find_element_by_id("slctPrimaryEntity"))
-    entity.select_by_visible_text("Absentee Applications")
+    entity.select_by_visible_text(entity_name)
+    dismiss_alerts(browser)
     view = Select(browser.find_element_by_id("savedQuerySelector"))
-    view.select_by_visible_text("Absentee mailing")
+    view.select_by_visible_text(view_name)
+
+
+def change_date(browser):
+    wait_for_id(browser, "advFindEFGRP0FFLD2CCVALLBL")
     masked_date = browser.find_element_by_id("advFindEFGRP0FFLD2CCVALLBL")
     hover = ActionChains(browser).move_to_element(masked_date)
     hover.perform()
     date = browser.find_element_by_id("DateInput")
     date.click()
     date.clear()
-    date.send_keys("1/29/2016")
+    date.send_keys(get_yesterday())
+
+
+def switch_to_iframe(browser):
+    browser.switch_to.frame(browser.find_element_by_id("contentIFrame0"))
+
+
+def switch_out_of_iframe(browser):
     browser.switch_to.default_content()
-    browser.find_element_by_id("Mscrm.AdvancedFind.Groups.Show.Results-Large").click()
-    time.sleep(3)
-    browser.switch_to.alert.accept()
-    time.sleep(.2)
-    browser.switch_to.alert.accept()
-    time.sleep(.2)
-    browser.find_element_by_id("edm_absenteeapplication|NoRelationship|SubGridStandard|Mscrm.SubGrid.edm_absenteeapplication.ExportToExcel-Large").click()
-    time.sleep(.5)
-    browser.switch_to.frame(browser.find_element_by_id("InlineDialog_Iframe"))
-    browser.find_element_by_id("dialogOkButton").click()
 
 
+def download_absentee_list(browser):
+    switch_to_iframe(browser)
+    select_view(browser, "Absentee Applications", "Absentee mailing")
+    change_date(browser)
+    switch_out_of_iframe(browser)
+    download_excel(browser, "Absentee Application")
 
+
+def download_email_list(browser):
+    switch_to_iframe(browser)
+    select_view(browser, "Jurisdictions", "Jurisdiction Emails")
+    switch_out_of_iframe(browser)
+    download_excel(browser, "Jurisdictions")
+
+
+def return_to_query(browser):
+    time.sleep(0.1)
+    browser.find_element_by_class_name("ms-cui-tt-a").click()
+
+
+def main():
+    browser = get_webdriver()
+    browser.get("http://wisvote.wi.gov")
+    browser.maximize_window()
+    main_window = browser.current_window_handle
+    if "Sign In" in browser.title:
+        sign_in(browser)
+    else:
+        assert "Easy Navigate" in browser.title
+    wait_for_id(browser, "contentIFrame0")
+    time.sleep(0.75)
+    do_and_switch_to_new_window(browser, browser.find_element_by_id("advancedFindImage").click)
+    wait_for_id(browser, "contentIFrame0")
+    download_absentee_list(browser)
+    return_to_query(browser)
+    download_email_list(browser)
+    time.sleep(1)
+    browser.close()
+    browser.switch_to.window(main_window)
+    browser.close()
     print("Done")
 
 
