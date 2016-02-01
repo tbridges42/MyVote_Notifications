@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from threading import Thread
+from datetime import date, datetime, timedelta
 import time
 
 
@@ -55,15 +56,20 @@ def sign_in(browser):
 
 
 def get_yesterday():
-    date = time.localtime()
-    return str(date.tm_mon) + '/' + str(date.tm_mday - 1) + '/' + str(date.tm_year)
+    yesterday = date.today() - timedelta(1)
+    return yesterday.strftime('%m/%d/%Y')
 
 
-def click_if_available(browser, id, retry=False, timeout=5.0):
+def get_days_ago(delta):
+    day = date.today() - timedelta(delta)
+    return day.strftime('%m/%d/%Y')
+
+
+def click_if_available(browser, element_id, retry=False, timeout=5.0):
     time_elapsed = 0.0
     while time_elapsed < timeout:
         try:
-            browser.find_element_by_id(id).click()
+            browser.find_element_by_id(element_id).click()
             break
         except NoSuchElementException:
             if retry:
@@ -107,7 +113,7 @@ def select_view(browser, entity_name, view_name):
     view.select_by_visible_text(view_name)
 
 
-def change_date(browser):
+def change_date(browser, absentee_date):
     wait_for_id(browser, "advFindEFGRP0FFLD2CCVALLBL")
     masked_date = browser.find_element_by_id("advFindEFGRP0FFLD2CCVALLBL")
     hover = ActionChains(browser).move_to_element(masked_date)
@@ -115,7 +121,7 @@ def change_date(browser):
     date = browser.find_element_by_id("DateInput")
     date.click()
     date.clear()
-    date.send_keys(get_yesterday())
+    date.send_keys(absentee_date)
 
 
 def switch_to_iframe(browser):
@@ -126,10 +132,10 @@ def switch_out_of_iframe(browser):
     browser.switch_to.default_content()
 
 
-def download_absentee_list(browser):
+def download_absentee_list(browser, absentee_date):
     switch_to_iframe(browser)
-    select_view(browser, "Absentee Applications", "Absentee mailing")
-    change_date(browser)
+    select_view(browser, "Absentee Applications", "MyVote Mailing")
+    change_date(browser, absentee_date)
     switch_out_of_iframe(browser)
     download_excel(browser, "Absentee Application")
 
@@ -146,7 +152,7 @@ def return_to_query(browser):
     browser.find_element_by_class_name("ms-cui-tt-a").click()
 
 
-def main():
+def get_absentee_list(absentee_date):
     browser = get_webdriver()
     browser.get("http://wisvote.wi.gov")
     browser.maximize_window()
@@ -159,13 +165,39 @@ def main():
     time.sleep(0.75)
     do_and_switch_to_new_window(browser, browser.find_element_by_id("advancedFindImage").click)
     wait_for_id(browser, "contentIFrame0")
-    download_absentee_list(browser)
-    return_to_query(browser)
+    download_absentee_list(browser, absentee_date)
+    time.sleep(1)
+    browser.close()
+    browser.switch_to.window(main_window)
+    browser.close()
+
+
+def get_email_list():
+    browser = get_webdriver()
+    browser.get("http://wisvote.wi.gov")
+    browser.maximize_window()
+    main_window = browser.current_window_handle
+    if "Sign In" in browser.title:
+        sign_in(browser)
+    else:
+        assert "Easy Navigate" in browser.title
+    wait_for_id(browser, "contentIFrame0")
+    time.sleep(0.75)
+    do_and_switch_to_new_window(browser, browser.find_element_by_id("advancedFindImage").click)
+    wait_for_id(browser, "contentIFrame0")
     download_email_list(browser)
     time.sleep(1)
     browser.close()
     browser.switch_to.window(main_window)
     browser.close()
+
+
+def main():
+    get_absentee_list(get_yesterday())
+    if datetime.today().weekday() == 0:
+        get_absentee_list(get_days_ago(2))
+        get_absentee_list(get_days_ago(3))
+    get_email_list()
     print("Done")
 
 
