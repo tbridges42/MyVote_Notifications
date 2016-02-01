@@ -1,3 +1,4 @@
 Firefox must be installed
 Will not currently work without Python 3.5 installed
 Must run 'pip install selenium'
+Must run 'pip install pywinauto'
