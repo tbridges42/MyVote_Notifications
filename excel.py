@@ -48,8 +48,8 @@ def parse_email_file(filename):
 
 def add_emails(records, emails):
     for record in records:
-        if record[10] in emails:
-            record.append(emails[record[10]])
+        if record[8] in emails:
+            record.append(emails[record[8]])
     return records
 
 
@@ -59,11 +59,27 @@ def print_records(records, filename):
         writer.writerows(records)
 
 
+def filter_addresses(records):
+    for record in records:
+        if record[4] not in ['',',,']:
+            print('Absentee Address: ' + record[4])
+            record.pop(2)
+            record.pop(2)
+        elif record[3] not in ['',',,']:
+            print('Mailing Address: ' + record[3])
+            record.pop(2)
+            record.pop(3)
+        else:
+            record.pop(3)
+            record.pop(3)
+
+
 def main(number):
     absentee_files = get_absentee_files(number)
     data = []
     for file in absentee_files:
         data += parse_absentee_file(file)
+    filter_addresses(data)
     email_file = get_email_file()
     emails = parse_email_file(email_file)
     data = add_emails(data, emails)
