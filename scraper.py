@@ -11,6 +11,7 @@ from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from threading import Thread
 from datetime import date, datetime, timedelta
 import time
+import excel
 
 
 def do_and_switch_to_new_window(browser, action):
@@ -182,7 +183,7 @@ def get_email_list():
     else:
         assert "Easy Navigate" in browser.title
     wait_for_id(browser, "contentIFrame0")
-    time.sleep(0.75)
+    time.sleep(1)
     do_and_switch_to_new_window(browser, browser.find_element_by_id("advancedFindImage").click)
     wait_for_id(browser, "contentIFrame0")
     download_email_list(browser)
@@ -193,11 +194,14 @@ def get_email_list():
 
 
 def main():
+    count = 1
     get_absentee_list(get_yesterday())
     if datetime.today().weekday() == 0:
         get_absentee_list(get_days_ago(2))
         get_absentee_list(get_days_ago(3))
+        count = 3
     get_email_list()
+    excel.main(count)
     print("Done")
 
 
