@@ -2,6 +2,7 @@ import os
 import glob
 import heapq
 import codecs
+import csv
 
 
 def get_absentee_files(number):
@@ -20,28 +21,55 @@ def get_email_file():
     return file
 
 
-def parse_file(filename):
-    lines = []
+def parse_absentee_file(filename):
     result = []
     with codecs.open(filename, 'r', 'utf-16') as file:
         # The first 125 lines are unnecessary header information
-        lines = file.readlines()[125:]
+        lines = file.readlines()[124:]
     for line in lines:
-        print(line)
-        data = line.split('nobr>')[:-2]
-        print(data)
-        result.append(data)
+        data = [datum[:-2] for datum in line.replace("</td><td><nobr class='gridcellpadding'>", "").split('nobr>')
+                if 'td' not in datum]
+        if not data == []:
+            result.append(data)
+    return result[0:-2:2]
+
+
+def parse_email_file(filename):
+    result = dict()
+    with codecs.open(filename, 'r', 'utf-16') as file:
+        # The first 125 lines are unnecessary header information
+        lines = file.readlines()[124:]
+    for line in lines:
+        data = [datum[:-2] for datum in line.split('nobr>')]
+        if len(data) >= 6:
+            result[data[1]] = data[4]
     return result
 
 
-def main():
-    absentee_files = get_absentee_files(1)
-    data = parse_file(absentee_files[0])
-    print(absentee_files)
+def add_emails(records, emails):
+    for record in records:
+        if record[10] in emails:
+            record.append(emails[record[10]])
+    return records
+
+
+def print_records(records, filename):
+    with open(filename, 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(records)
+
+
+def main(number):
+    absentee_files = get_absentee_files(number)
+    data = []
+    for file in absentee_files:
+        data += parse_absentee_file(file)
     email_file = get_email_file()
-    print(email_file)
+    emails = parse_email_file(email_file)
+    data = add_emails(data, emails)
+    print_records(data, 'C:\\firefox_downloads\\output.csv')
 
 
 if __name__ == "__main__":
-    main()
+    main(1)
 
