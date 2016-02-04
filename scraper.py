@@ -12,6 +12,7 @@ from threading import Thread
 from datetime import date, datetime, timedelta
 import time
 import excel
+import send_email
 
 
 def do_and_switch_to_new_window(browser, action):
@@ -135,7 +136,7 @@ def switch_out_of_iframe(browser):
 
 def download_absentee_list(browser, absentee_date):
     switch_to_iframe(browser)
-    select_view(browser, "Absentee Applications", "MyVote Mailing")
+    select_view(browser, "Absentee Applications", "MyVote Mailing 2")
     change_date(browser, absentee_date)
     switch_out_of_iframe(browser)
     download_excel(browser, "Absentee Application")
@@ -201,7 +202,10 @@ def main():
         get_absentee_list(get_days_ago(3))
         count = 3
     get_email_list()
-    excel.main(count)
+    data, emails = excel.main(count)
+    #print(data)
+    #for key in data:
+    #    send_email.send_mail(get_creds(), emails[key], 'Test', str(data[key]))
     print("Done")
 
 
