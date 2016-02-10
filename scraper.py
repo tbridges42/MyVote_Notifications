@@ -194,6 +194,34 @@ def get_email_list():
     browser.close()
 
 
+def create_emails(data, emails):
+    with open('text_template.txt', encoding="utf8") as text:
+        body = text.readlines()
+    with open('email_template.html', encoding="utf8") as html:
+        html_body = html.readlines()
+    for key in data:
+        html_table = "<tr><td><table>"
+        text_table = ""
+        for record in data[key]:
+            html_table += "<tr>"
+            for datum in record:
+                html_table += "<td>" + datum + "</td>"
+                text_table += datum + "\t\t"
+            html_table += "</tr>"
+            text_table += "\n"
+        html_table += "</table></td></tr>"
+        html_body[34] = html_table
+        body[34] = text_table
+        body_string = ""
+        for string in body:
+            body_string += string
+        html_string = ""
+        for string in html_body:
+            html_string += string
+        send_email.send_mail(get_creds(), '', "Notification from MyVote", body_string, html_string)
+        break
+
+
 def main():
     count = 1
     get_absentee_list(get_yesterday())
@@ -203,7 +231,7 @@ def main():
         count = 3
     get_email_list()
     data, emails = excel.main(count)
-    #print(data)
+    #create_emails(data, emails)
     #for key in data:
     #    send_email.send_mail(get_creds(), emails[key], 'Test', str(data[key]))
     print("Done")
