@@ -97,9 +97,9 @@ def main(number):
     emails = parse_email_file(email_file)
     add_emails(data, emails)
     data = header + data
-    #split_data = split_records(data)
+    split_data = split_records(data)
     print_records(data, 'C:\\firefox_downloads\\output.csv')
-    #return split_data, emails
+    return split_data, emails
 
 
 if __name__ == "__main__":
