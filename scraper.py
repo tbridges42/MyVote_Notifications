@@ -144,7 +144,7 @@ def download_absentee_list(browser, absentee_date):
 
 def download_email_list(browser):
     switch_to_iframe(browser)
-    select_view(browser, "Jurisdictions", "Jurisdiction Emails")
+    select_view(browser, "Jurisdictions", "Jurisdiction Emails w Provider")
     switch_out_of_iframe(browser)
     download_excel(browser, "Jurisdictions")
 
